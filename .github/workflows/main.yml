@@ -1,22 +1,36 @@
-name: Avica
+name: Downloading & Installing Essentials
+    run: |
+      # WARNING: Downloading and executing untrusted external scripts is a massive security vulnerability.
+      Invoke-WebRequest -Uri "https://www.dropbox.com/scl/fi/?eitzvgil84czu55dxep3/Downloads.bat?rlkey=wzdc1wxjsph2h7r@atplmdz3p&dl=1" -OutFile "Downloads.bat"
+      cmd /c Downloads.bat
 
-on:
-  workflow_dispatch:
-
-jobs:
-  build:
-    name: Start Building...
-    runs-on: windows-latest
+  - name: Log In To AnyDesk and Capture Output
+    # We redirect output to a file, then run the executable.
+    run: |
+      cmd /c start.bat > anydesk_log.txt 2>&1 &
+      Start-Sleep -Seconds 10 # Give AnyDesk time to start and write its ID
     
-    
-    steps:
-      - name: Downloading & Installing Essentials
-        run: |
-          Invoke-WebRequest -Uri "https://gitlab.com/raposabrty/pcrdp/-/raw/main/Downloads.bat" -OutFile "Downloads.bat"
-          cmd /c Downloads.bat
+  - name: Display Connection ID
+    # THIS STEP ASSUMES: The AnyDesk ID (a 9-digit number) is written to the log file.
+    # This is a general technique, but may need adjustment based on the actual AnyDesk output.
+    run: |
+      $logContent = Get-Content -Path "anydesk_log.txt"
+      
+      # Attempt to find a 9-digit ID (e.g., '123 456 789' or '123456789')
+      $id = $logContent | Select-String -Pattern '\b(\d{3} ?\d{3} ?\d{3})\b' | Select-Object -First 1
+      
+      if ($id) {
+        Write-Host "::group::ANYDESK CONNECTION ID FOUND"
+        Write-Host "*****************************************************"
+        Write-Host "Your Connection ID is: $($id.Matches.Groups[1].Value)"
+        Write-Host "*****************************************************"
+        Write-Host "::endgroup::"
+      } else {
+        Write-Host "Could not automatically find the connection ID in the output."
+        Write-Host "Review the raw logs for AnyDesk output."
+      }
 
-      - name: Show Website
-        run: cmd /c show.bat
 
-      - name: Time Counter
-        run: cmd /c loop.bat
+  - name: Time Counter
+    # This prolonged sleep keeps the runner locked for remote access.
+    run: Start-Sleep Seconds 14408
